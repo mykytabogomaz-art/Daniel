@@ -1,0 +1,262 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Hoover Counting</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
+<style>
+/* Layout: one screen, three stacked bands — star bar, playroom stage with hoovers on a rug, three giant number buttons. Single bright look by design. */
+:root{
+  color-scheme: light;
+  --sky:#8fe3ff; --sky-2:#d8f6ff; --floor:#ffd66b; --rug:#ff8fb1;
+  --ink:#27306b; --card:#ffffff; --star:#ffc21a; --star-off:#cfe0ee;
+  --b1:#ff5a5f; --b2:#2bb3ff; --b3:#34c97b;
+  --display:"Baloo 2","Comic Sans MS","Arial Rounded MT Bold",system-ui,sans-serif;
+}
+html,body{height:100%}
+body{
+  background:var(--floor);
+  color:var(--ink); font-family:var(--display); font-weight:800;
+  display:flex; flex-direction:column; gap:10px; overflow:hidden;
+  padding-block:12px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-tap-highlight-color:transparent; user-select:none; touch-action:manipulation;
+}
+.wrap{width:100%; max-width:640px; margin-inline:auto}
+/* sky zone: everything above the number buttons; the yellow floor starts right under it */
+.top{display:flex; flex-direction:column; gap:10px; padding-bottom:16px; background:var(--sky);
+  box-shadow:0 0 0 100vmax var(--sky); clip-path:inset(-100vmax -100vmax 0 -100vmax)}
+
+/* star progress */
+.stars{
+  display:flex; justify-content:space-between; align-items:center; gap:6px;
+  background:var(--card); border:5px solid var(--ink); border-radius:999px;
+  padding:6px 18px; box-shadow:0 6px 0 var(--ink);
+}
+.stars{--L:min(21vw,124px)}
+.stars span{flex:1; height:calc(var(--L)*.92); display:grid; place-items:center; min-width:0}
+.stars img{width:var(--L); max-width:none; height:auto; rotate:-55deg; filter:grayscale(1); opacity:.28; transition:filter .2s,opacity .2s}
+.stars img.on{filter:none; opacity:1; animation:pop .6s cubic-bezier(.3,1.8,.5,1)}
+.stars img.now{opacity:.5; animation:pulse 1s ease-in-out infinite}
+
+/* stage */
+.stage{flex:0 1 auto; min-height:0; display:flex; flex-direction:column; align-items:center; gap:6px; position:relative}
+h1{margin:0; font-size:clamp(26px,7.5vw,44px); line-height:1.1; text-align:center; text-wrap:balance;
+  color:var(--card); -webkit-text-stroke:2px var(--ink); paint-order:stroke fill; text-shadow:0 4px 0 var(--ink)}
+.row{--w:min(27vw,170px,26vh); flex:none; min-height:calc(var(--w)*1.5 + 12px); width:100%; display:flex; justify-content:center; align-items:flex-end; gap:min(2vw,14px); position:relative; padding-bottom:4px}
+.row::before{content:""; position:absolute; left:4%; right:4%; bottom:0; height:22%; background:var(--rug);
+  border:5px solid var(--ink); border-radius:50%; z-index:0}
+.row.fin{min-height:min(60vh,520px)}
+.hoover{width:var(--w); position:relative; z-index:1; cursor:pointer;
+  background:none; border:0; padding:0; font:inherit; color:inherit;
+  animation:drop .5s cubic-bezier(.3,1.6,.5,1) backwards}
+.card{display:block; aspect-ratio:2/3; box-sizing:border-box; padding:6%; background:var(--card);
+  border:5px solid var(--ink); border-radius:22px; box-shadow:0 6px 0 var(--ink)}
+.card img{display:block; width:100%; height:100%; object-fit:contain}
+.hoover.wig .card{animation:wig .5s}
+.hoover.jump .card{animation:jump .6s ease-in-out 2}
+.hoover:focus-visible{outline:5px dashed var(--ink); outline-offset:4px; border-radius:20px}
+.badge{position:absolute; top:-6%; left:50%; translate:-50% 0; width:42%; aspect-ratio:1; border-radius:50%;
+  background:var(--star); border:4px solid var(--ink); display:grid; place-items:center;
+  font-size:calc(var(--w)*.28); line-height:1; animation:pop .45s cubic-bezier(.3,1.8,.5,1) backwards}
+
+/* answers */
+.answers{display:flex; gap:min(11vw,80px); justify-content:center; margin-top:8px}
+.answers button{
+  flex:1; max-width:170px; aspect-ratio:1/0.9; min-height:84px; max-height:22vh;
+  font:inherit; font-size:clamp(48px,15vw,84px); line-height:1; color:#fff;
+  background:var(--c); border:5px solid var(--ink); border-radius:28px;
+  box-shadow:0 8px 0 var(--ink); cursor:pointer; transition:transform .08s, box-shadow .08s, opacity .2s;
+  -webkit-text-stroke:2px var(--ink); paint-order:stroke fill;
+}
+.answers button:active{transform:translateY(6px); box-shadow:0 2px 0 var(--ink)}
+.answers button:focus-visible{outline:5px dashed var(--ink); outline-offset:4px}
+.answers button.no{animation:shake .45s; opacity:.35; pointer-events:none}
+.answers button.grey{filter:grayscale(1); opacity:.35; pointer-events:none}
+.answers button.yes{animation:pop .6s cubic-bezier(.3,1.8,.5,1)}
+
+/* finish */
+.done{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:3}
+.done svg{width:min(40vw,180px,28vh); fill:var(--star); stroke:var(--ink); stroke-width:4; stroke-linejoin:round; animation:spin 2.4s ease-in-out infinite}
+.done img{width:auto; max-width:92%; max-height:68%; border:6px solid var(--ink); border-radius:28px;
+  box-shadow:0 8px 0 var(--ink); background:var(--card); animation:pop .7s cubic-bezier(.3,1.6,.5,1)}
+.again{font:inherit; font-size:clamp(24px,7vw,36px); color:#fff; background:var(--b3); border:5px solid var(--ink);
+  border-radius:999px; padding:8px 30px; box-shadow:0 7px 0 var(--ink); cursor:pointer; -webkit-text-stroke:1.5px var(--ink); paint-order:stroke fill}
+.again:active{transform:translateY(5px); box-shadow:0 2px 0 var(--ink)}
+
+/* balloons */
+.sky{position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:20}
+.balloon{position:absolute; bottom:-160px; width:var(--s); height:calc(var(--s)*1.2);
+  background:radial-gradient(circle at 32% 28%,#fff9 0 12%,transparent 13%),var(--c);
+  border:4px solid var(--ink); border-radius:50% 50% 50% 50%/45% 45% 55% 55%;
+  animation:rise var(--t) ease-in forwards}
+.balloon::after{content:""; position:absolute; left:50%; top:100%; width:3px; height:70px; background:var(--ink); border-radius:2px}
+
+@keyframes rise{to{transform:translate(var(--dx),-130vh) rotate(var(--r))}}
+@keyframes pop{0%{transform:scale(.2)}100%{transform:scale(1)}}
+@keyframes pulse{50%{transform:scale(1.15)}}
+@keyframes drop{0%{transform:translateY(-60vh)}}
+@keyframes wig{25%{transform:rotate(-9deg)}75%{transform:rotate(9deg)}}
+@keyframes jump{50%{transform:translateY(-16%)}}
+@keyframes shake{20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
+@keyframes spin{50%{transform:rotate(14deg) scale(1.1)}}
+@media (prefers-reduced-motion:reduce){
+  .hoover,.hoover .card,.stars img,.done svg,.answers button{animation:none!important}
+}
+</style>
+
+<div class="top">
+<div class="wrap stars" id="stars" role="img" aria-label="Sweets won"></div>
+
+<div class="wrap stage">
+  <h1 id="prompt">How many hoovers?</h1>
+  <div class="row" id="row"></div>
+</div>
+</div>
+
+<div class="wrap answers" id="answers">
+  <button id="ans1" style="--c:var(--b1)" data-n="1">1</button>
+  <button id="ans2" style="--c:var(--b2)" data-n="2">2</button>
+  <button id="ans3" style="--c:var(--b3)" data-n="3">3</button>
+</div>
+
+<div class="sky" id="sky" aria-hidden="true"></div>
+
+<script>
+(function(){
+  var TOTAL=5, COLORS=['#ff5a5f','#2bb3ff','#34c97b','#ff9f1c','#a66bff','#ff6fc8'];
+  var WORDS=['','One','Two','Three'];
+  var STAR='<svg viewBox="0 0 100 100"><path d="M50 8l12.5 27 29.5 3.5-22 20 6 29L50 73 24 87.500l6-29-22-20L37.500 35z"/></svg>';
+  var $=function(id){return document.getElementById(id)};
+  var starsEl=$('stars'), row=$('row'), answers=$('answers'), sky=$('sky'), prompt=$('prompt');
+  var rounds=[], order=[], q=0, locked=false, finishTimer=null, actx=null;
+
+  function rnd(n){return Math.floor(Math.random()*n)}
+  function shuffle(a){for(var i=a.length-1;i>0;i--){var j=rnd(i+1),t=a[i];a[i]=a[j];a[j]=t}return a}
+  function makeRounds(){
+    var a=shuffle([1,2,3]);
+    while(a.length<TOTAL){var n=1+rnd(3); if(n!==a[a.length-1]) a.push(n)}
+    return a;
+  }
+
+  function hooverSVG(c){
+    return '<svg viewBox="0 0 120 180" aria-hidden="true">'+
+      '<g stroke="#27306b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">'+
+      '<path d="M60 62V18" fill="none"/>'+
+      '<rect x="44" y="6" width="32" height="16" rx="8" fill="#27306b"/>'+
+      '<path d="M90 96c22 4 22 44 4 50" fill="none" stroke-width="7"/>'+
+      '<ellipse cx="60" cy="100" rx="32" ry="42" fill="'+c+'"/>'+
+      '<rect x="12" y="140" width="96" height="28" rx="14" fill="#fff"/>'+
+      '<circle cx="30" cy="170" r="8" fill="#27306b"/><circle cx="90" cy="170" r="8" fill="#27306b"/>'+
+      '<circle cx="48" cy="90" r="10" fill="#fff"/><circle cx="72" cy="90" r="10" fill="#fff"/>'+
+      '<path d="M46 112q14 14 28 0" fill="none"/>'+
+      '</g>'+
+      '<circle cx="50" cy="92" r="4.500" fill="#27306b"/><circle cx="74" cy="92" r="4.500" fill="#27306b"/>'+
+      '<circle cx="36" cy="106" r="5" fill="#fff" opacity=".5"/><circle cx="84" cy="106" r="5" fill="#fff" opacity=".5"/>'+
+      '</svg>';
+  }
+
+  function tone(freq,at,dur,type){
+    try{
+      actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+      var o=actx.createOscillator(), g=actx.createGain(), t=actx.currentTime+at;
+      o.type=type||'triangle'; o.frequency.value=freq;
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.25,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+dur+0.05);
+    }catch(e){}
+  }
+  function say(text){
+    try{
+      if(!window.speechSynthesis) return;
+      speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(text); u.lang='en-GB'; u.rate=0.9; u.pitch=1.3;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  function drawStars(){
+    var h='';
+    for(var i=0;i<TOTAL;i++) h+='<span><img src="candy.jpg" alt="" class="'+(i<q?'on':(i===q?'now':''))+'"></span>';
+    starsEl.innerHTML=h;
+  }
+
+  function balloons(count){
+    for(var i=0;i<count;i++){
+      var b=document.createElement('div'); b.className='balloon';
+      var s=56+rnd(50);
+      b.style.cssText='--s:'+s+'px;--c:'+COLORS[rnd(COLORS.length)]+';--t:'+(1.5+Math.random()*1.2)+'s;--dx:'+(rnd(120)-60)+'px;--r:'+(rnd(40)-20)+'deg;left:'+(rnd(92))+'%;animation-delay:'+(Math.random()*0.5)+'s';
+      sky.appendChild(b);
+      b.addEventListener('animationend',function(){this.remove()});
+    }
+  }
+
+  function showQuestion(){
+    locked=false;
+    prompt.textContent='How many hoovers?';
+    answers.hidden=false;
+    row.classList.remove('fin');
+    [].forEach.call(answers.children,function(b){b.className=''});
+    var n=rounds[q], h='';
+    for(var i=0;i<n;i++){
+      h+='<button class="hoover" aria-label="Hoover" style="animation-delay:'+(i*0.12)+'s"><span class="card"><img src="hoover'+order[q]+'.jpg" alt=""></span></button>';
+    }
+    row.innerHTML=h;
+    drawStars();
+  }
+
+  function correct(btn){
+    locked=true;
+    var n=rounds[q];
+    btn.classList.add('yes');
+    [523,659,784,1047].forEach(function(f,i){tone(f,i*0.11,0.25)});
+    say(WORDS[n]+'!');
+    [].forEach.call(row.children,function(h,i){
+      h.classList.add('jump');
+    });
+    [].forEach.call(answers.children,function(b){ if(b!==btn){b.classList.remove('no'); b.classList.add('grey')} });
+    q++; drawStars();
+    setTimeout(q<TOTAL?showQuestion:finish,1800);
+  }
+
+  function wrong(btn){
+    btn.classList.add('no');
+    tone(196,0,0.25,'sine');
+    [].forEach.call(row.children,function(h){h.classList.remove('wig'); void h.offsetWidth; h.classList.add('wig')});
+  }
+
+  function finish(){
+    prompt.textContent='You did it!';
+    answers.hidden=true;
+    row.classList.add('fin');
+    row.innerHTML='<div class="done"><img src="child.jpg" alt="Photo of the winner"><button class="again" id="again">Play again</button></div>';
+    say('You did it! Well done!');
+    [523,659,784,659,784,1047].forEach(function(f,i){tone(f,i*0.14,0.3)});
+    balloons(20);
+    finishTimer=setInterval(function(){balloons(6)},900);
+  }
+
+  function start(saved){
+    clearInterval(finishTimer); sky.innerHTML='';
+    if(saved && saved.rounds && saved.order && saved.q<TOTAL){rounds=saved.rounds; order=saved.order; q=saved.q}
+    else{rounds=makeRounds(); order=shuffle([1,2,3,4,5]); q=0}
+    showQuestion();
+  }
+
+  answers.addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b||locked) return;
+    if(+b.dataset.n===rounds[q]) correct(b); else wrong(b);
+  });
+  row.addEventListener('click',function(e){
+    if(e.target.closest('#again')){start(); return}
+    var h=e.target.closest('.hoover'); if(!h||locked) return;
+    h.classList.remove('wig'); void h.offsetWidth; h.classList.add('wig');
+    tone(110,0,0.35,'sawtooth');
+  });
+
+  var hot=window.claude&&window.claude.hot;
+  try{ if(hot&&hot.snapshot) hot.snapshot(function(){return {rounds:rounds,order:order,q:q}}); }catch(e){}
+  if(hot&&hot.ready) hot.ready(start); else start((hot&&hot.data)||{});
+})();
+</script>
+
+</body></html>
