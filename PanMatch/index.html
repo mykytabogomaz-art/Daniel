@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Скільки сковорідок?</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: linear-gradient(180deg, #e8f6ff 0%, #fff7e6 100%);
+    color: #23324a;
+    display: flex; flex-direction: column; align-items: center;
+    user-select: none; -webkit-user-select: none;
+    overflow-x: hidden;
+  }
+  header { text-align: center; padding: 14px 12px 4px; }
+  h1 { margin: 0; font-size: clamp(24px, 6vw, 36px); color: #1d6fd8; }
+  .hint { margin: 4px 0 0; font-size: clamp(15px, 4vw, 19px); color: #4a5b75; }
+  .stars { font-size: 22px; letter-spacing: 4px; margin-top: 6px; min-height: 28px; }
+
+  #board {
+    position: relative;
+    width: min(100%, 640px);
+    padding: 10px 10px 16px;
+    display: flex; justify-content: space-between; gap: 0;
+    touch-action: none;
+  }
+  #lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+  .col { display: flex; flex-direction: column; gap: 12px; z-index: 2; }
+  .left { width: 60%; }
+  .right { width: 24%; }
+
+  .card {
+    position: relative;
+    background: #fff;
+    border: 3px solid #cfe0f5;
+    border-radius: 18px;
+    height: clamp(80px, 21vw, 112px);
+    padding: 4px 22px 4px 8px;
+    display: flex; align-items: center; justify-content: flex-start; gap: 2px;
+    box-shadow: 0 3px 0 #cfe0f5;
+    cursor: pointer;
+    transition: transform .12s, border-color .2s, background .2s;
+  }
+  .rows { display: flex; flex-direction: column; gap: 3px; }
+  .row { display: flex; gap: 4px; }
+  .card img {
+    width: clamp(50px, 14.5vw, 82px);
+    height: auto;
+    transition: transform .2s, filter .2s;
+    pointer-events: none;
+  }
+  .card img.lit { transform: scale(1.25) translateY(-4px); filter: drop-shadow(0 0 6px #ffd23f); }
+
+  .num {
+    position: relative;
+    background: #fff;
+    border: 3px solid #ffd6a5;
+    border-radius: 18px;
+    height: clamp(80px, 21vw, 112px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(40px, 12vw, 60px); font-weight: 800; color: #ff7a1a;
+    box-shadow: 0 3px 0 #ffd6a5;
+    cursor: pointer;
+    transition: transform .12s, border-color .2s, background .2s;
+  }
+
+  .dot {
+    position: absolute; top: 50%;
+    width: 18px; height: 18px; margin-top: -9px;
+    border-radius: 50%;
+    background: #1d6fd8; border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #1d6fd8;
+    pointer-events: none;
+  }
+  .card .dot { right: -11px; }
+  .num .dot { left: -11px; background: #ff7a1a; box-shadow: 0 0 0 2px #ff7a1a; }
+
+  .selected { border-color: #ffd23f !important; background: #fffbe0 !important; transform: scale(1.03); }
+  .done { border-color: #3cb95b !important; background: #ecfbef !important; box-shadow: 0 3px 0 #3cb95b !important; cursor: default; }
+  .done .dot { background: #3cb95b; box-shadow: 0 0 0 2px #3cb95b; }
+  .shake { animation: shake .4s; border-color: #ff5a5a !important; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); } 40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); } 80% { transform: translateX(6px); }
+  }
+
+  #win {
+    position: fixed; inset: 0; z-index: 10;
+    background: rgba(255,255,255,.88);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+  }
+  #win.show { display: flex; animation: pop .35s ease-out; }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  #win .big { font-size: 80px; }
+  #win h2 { font-size: clamp(30px, 8vw, 44px); margin: 6px 0 18px; color: #3cb95b; }
+  button {
+    font: inherit; font-size: 22px; font-weight: 800;
+    border: none; border-radius: 16px;
+    padding: 14px 30px;
+    background: #1d6fd8; color: #fff;
+    box-shadow: 0 4px 0 #1456a8;
+    cursor: pointer;
+  }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #1456a8; }
+  .confetti { position: fixed; top: -20px; font-size: 26px; z-index: 11; pointer-events: none; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); } }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Скільки сковорідок?</h1>
+    <p class="hint">Проведи лінію від сковорідок до числа.<br>Натисни на картку, щоб порахувати.</p>
+    <div class="stars" id="stars"></div>
+  </header>
+
+  <div id="board">
+    <svg id="lines"></svg>
+    <div class="col left" id="cards"></div>
+    <div class="col right" id="nums"></div>
+  </div>
+
+  <div id="win">
+    <div class="big">🎉</div>
+    <h2>Молодець!</h2>
+    <button id="again">Ще раз</button>
+  </div>
+
+<script>
+const IMG = "pan.webp";
+const MAX = 5;
+const COUNT_WORDS = ["", "один", "два", "три", "чотири", "п'ять"];
+const BOTTLE_PHRASE = ["", "Одна сковорідка!", "Дві сковорідки!", "Три сковорідки!", "Чотири сковорідки!", "П'ять сковорідок!"];
+const PRAISE = ["Правильно!", "Молодець!", "Чудово!", "Супер!", "Так!"];
+
+const board = document.getElementById("board");
+const svg = document.getElementById("lines");
+const cardsEl = document.getElementById("cards");
+const numsEl = document.getElementById("nums");
+const starsEl = document.getElementById("stars");
+const win = document.getElementById("win");
+
+let matched = [];      // numbers already matched
+let selected = null;   // element chosen by tap
+let drag = null;       // {el, line, x, y, moved}
+let countTimers = [];
+
+/* ---------- sound ---------- */
+let actx = null;
+function tone(freqs, dur = 0.15, type = "sine", vol = 0.18) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    let t = actx.currentTime;
+    freqs.forEach(f => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(t); o.stop(t + dur);
+      t += dur * 0.8;
+    });
+  } catch (e) {}
+}
+const ding = () => tone([660, 880, 1175], 0.14, "triangle");
+const buzz = () => tone([220, 180], 0.18, "sawtooth", 0.08);
+
+let ukVoice = null;
+function pickVoice() {
+  if (!("speechSynthesis" in window)) return;
+  const v = speechSynthesis.getVoices();
+  ukVoice = v.find(x => x.lang && x.lang.toLowerCase().startsWith("uk")) || null;
+}
+if ("speechSynthesis" in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function say(text, cancel = true) {
+  if (!("speechSynthesis" in window)) return;
+  if (cancel) speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "uk-UA"; if (ukVoice) u.voice = ukVoice;
+  u.rate = 0.85; u.pitch = 1.1;
+  speechSynthesis.speak(u);
+}
+
+/* ---------- build ---------- */
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function build() {
+  matched = []; selected = null;
+  cardsEl.innerHTML = ""; numsEl.innerHTML = ""; svg.innerHTML = "";
+  starsEl.textContent = "";
+  win.classList.remove("show");
+  const base = [...Array(MAX)].map((_, i) => i + 1);
+  let left = [...base], right = shuffle([...base]);   // bottles always 1→5 from top
+  // avoid straight-across answers everywhere
+  while (right.some((n, i) => n === left[i])) right = shuffle(right);
+
+  left.forEach(n => {
+    const c = document.createElement("div");
+    c.className = "card"; c.dataset.n = n; c.dataset.kind = "card";
+    // pans are wide: 4 → 2+2, 5 → 3+2
+    const rows = n <= 3 ? [n] : n === 4 ? [2, 2] : [3, 2];
+    const wrap = document.createElement("div"); wrap.className = "rows";
+    rows.forEach(k => {
+      const r = document.createElement("div"); r.className = "row";
+      for (let i = 0; i < k; i++) { const im = new Image(); im.src = IMG; im.alt = "сковорідка"; r.appendChild(im); }
+      wrap.appendChild(r);
+    });
+    c.appendChild(wrap);
+    c.insertAdjacentHTML("beforeend", '<span class="dot"></span>');
+    cardsEl.appendChild(c);
+  });
+  right.forEach(n => {
+    const d = document.createElement("div");
+    d.className = "num"; d.dataset.n = n; d.dataset.kind = "num";
+    d.innerHTML = n + '<span class="dot"></span>';
+    numsEl.appendChild(d);
+  });
+}
+
+/* ---------- geometry ---------- */
+function dotPos(el) {
+  const b = board.getBoundingClientRect();
+  const r = el.querySelector(".dot").getBoundingClientRect();
+  return { x: r.left + r.width / 2 - b.left, y: r.top + r.height / 2 - b.top };
+}
+function makeLine(p1, p2, color, width = 7) {
+  const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  l.setAttribute("x1", p1.x); l.setAttribute("y1", p1.y);
+  l.setAttribute("x2", p2.x); l.setAttribute("y2", p2.y);
+  l.setAttribute("stroke", color); l.setAttribute("stroke-width", width);
+  l.setAttribute("stroke-linecap", "round");
+  svg.appendChild(l);
+  return l;
+}
+function redraw() {
+  svg.innerHTML = "";
+  matched.forEach(n => {
+    const c = cardsEl.querySelector(`.card[data-n="${n}"]`);
+    const d = numsEl.querySelector(`.num[data-n="${n}"]`);
+    makeLine(dotPos(c), dotPos(d), "#3cb95b");
+  });
+}
+window.addEventListener("resize", redraw);
+
+/* ---------- counting ---------- */
+function stopCounting() {
+  countTimers.forEach(clearTimeout); countTimers = [];
+  document.querySelectorAll(".card img.lit").forEach(i => i.classList.remove("lit"));
+}
+function countCard(card) {
+  stopCounting();
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  const imgs = [...card.querySelectorAll("img")];
+  imgs.forEach((im, i) => {
+    countTimers.push(setTimeout(() => {
+      imgs.forEach(x => x.classList.remove("lit"));
+      im.classList.add("lit");
+      say(COUNT_WORDS[i + 1], false);
+      tone([400 + i * 90], 0.08, "sine", 0.08);
+    }, i * 800));
+  });
+  countTimers.push(setTimeout(() => imgs.forEach(x => x.classList.remove("lit")), imgs.length * 800 + 300));
+}
+
+/* ---------- matching ---------- */
+function tryMatch(a, b) {
+  const card = a.dataset.kind === "card" ? a : b;
+  const num = a.dataset.kind === "num" ? a : b;
+  const n = +card.dataset.n;
+  clearSelection();
+  if (n === +num.dataset.n) {
+    stopCounting();
+    matched.push(n);
+    card.classList.add("done"); num.classList.add("done");
+    moveOpposite(card, num);
+    ding();
+    say(BOTTLE_PHRASE[n] + " " + PRAISE[Math.floor(Math.random() * PRAISE.length)]);
+    starsEl.textContent = "⭐".repeat(matched.length);
+    if (matched.length === MAX) setTimeout(celebrate, 1300);
+  } else {
+    const l = makeLine(dotPos(card), dotPos(num), "#ff5a5a");
+    setTimeout(() => l.remove(), 500);
+    [card, num].forEach(el => { el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); });
+    setTimeout(() => [card, num].forEach(el => el.classList.remove("shake")), 450);
+    buzz();
+    say("Ой! Порахуй ще раз.");
+  }
+}
+/* move the matched number so it sits opposite its card (swap with the one there) */
+function moveOpposite(card, num) {
+  const row = [...cardsEl.children].indexOf(card);
+  const other = numsEl.children[row];
+  if (!other || other === num) { redraw(); return; }
+  const els = [num, other];
+  const before = els.map(el => el.getBoundingClientRect().top);
+  // swap DOM positions
+  const mark = document.createElement("div");
+  num.replaceWith(mark); other.replaceWith(num); mark.replaceWith(other);
+  els.forEach((el, i) => {
+    const dy = before[i] - el.getBoundingClientRect().top;
+    el.style.transition = "none";
+    el.style.transform = `translateY(${dy}px)`;
+  });
+  void numsEl.offsetWidth;
+  els.forEach(el => {
+    el.style.transition = "transform .55s cubic-bezier(.3,1.3,.5,1)";
+    el.style.transform = "";
+  });
+  const t0 = performance.now();
+  (function frame(t) {
+    redraw();
+    if (t - t0 < 650) requestAnimationFrame(frame);
+    else els.forEach(el => { el.style.transition = ""; redraw(); });
+  })(t0);
+}
+
+function clearSelection() {
+  if (selected) selected.classList.remove("selected");
+  selected = null;
+}
+
+function itemFrom(target) {
+  const el = target && target.closest ? target.closest(".card, .num") : null;
+  return el && !el.classList.contains("done") ? el : null;
+}
+
+board.addEventListener("pointerdown", e => {
+  const el = itemFrom(e.target);
+  if (!el) return;
+  e.preventDefault();
+  board.setPointerCapture(e.pointerId);
+  const p = dotPos(el);
+  drag = { el, x: e.clientX, y: e.clientY, moved: false, line: makeLine(p, p, "#ffb703", 6) };
+  drag.line.setAttribute("stroke-dasharray", "2 12");
+});
+board.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 10) drag.moved = true;
+  const b = board.getBoundingClientRect();
+  drag.line.setAttribute("x2", e.clientX - b.left);
+  drag.line.setAttribute("y2", e.clientY - b.top);
+});
+function endDrag(e) {
+  if (!drag) return;
+  const { el, moved, line } = drag;
+  line.remove(); drag = null;
+  if (moved) {
+    const target = itemFrom(document.elementFromPoint(e.clientX, e.clientY));
+    if (target && target.dataset.kind !== el.dataset.kind) tryMatch(el, target);
+    return;
+  }
+  // a tap
+  if (selected && selected !== el && selected.dataset.kind !== el.dataset.kind) { tryMatch(selected, el); return; }
+  clearSelection();
+  selected = el; el.classList.add("selected");
+  if (el.dataset.kind === "card") countCard(el);
+  else { stopCounting(); say(COUNT_WORDS[+el.dataset.n]); }
+}
+board.addEventListener("pointerup", endDrag);
+board.addEventListener("pointercancel", () => { if (drag) { drag.line.remove(); drag = null; } });
+
+/* ---------- win ---------- */
+function celebrate() {
+  win.classList.add("show");
+  say("Молодець! Усі сковорідки пораховано!");
+  tone([523, 659, 784, 1047], 0.18, "triangle");
+  const bits = ["🎉", "⭐", "🎈", "✨", "🌟"];
+  for (let i = 0; i < 28; i++) {
+    const s = document.createElement("span");
+    s.className = "confetti";
+    s.textContent = bits[i % bits.length];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = 1.8 + Math.random() * 1.8 + "s";
+    s.style.animationDelay = Math.random() * 0.6 + "s";
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 4200);
+  }
+}
+document.getElementById("again").addEventListener("click", build);
+
+build();
+</script>
+</body>
+</html>
